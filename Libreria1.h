@@ -42,13 +42,14 @@ typedef enum{
 void spiInit(tipo, orden, polaridad, phase);
 void spiwrite(uint8_t dat);
 unsigned spidata();
-uint8_t spiread(uint8_t data);
+uint8_t spiread(void);
+
+///////////////////
 void enviar(char data);
 void cadena();
 void iniciar_USART();
 void initADC();
 void initCON();
-uint16_t leerADC_esclavo(uint8_t canal);
 
 
 #endif /* LIBRERIA_H_ */
