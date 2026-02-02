@@ -7,7 +7,7 @@
 
 #define F_CPU 16000000
 #include <avr/io.h>
-#include "Libreria.h"
+#include "Libreria1.h"
 #include <stdint.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
@@ -18,158 +18,110 @@
 
 /****************************************/
 // Function prototypes
+
 uint8_t valorSpi = 0;
-int canal_actual = 0;
-int voltaje1 = 0; //Maestro
-int voltaje2 = 0; //Maestro
-uint16_t valor1 = 0;
-uint16_t valor2 = 0;
-void setup();
-uint16_t adc1 = 0;
-uint16_t adc2 = 0;
-char texto1[6];
-char texto2[6];
+void refreshPort(uint8_t valor);
 
 
-///////////////////////ESCLAVO///////////////////////////////
-
-/*
-
+///////////////////////MAESTRO///////////////////////////////
 // Main Function
 int main(void)
 {
-   
-	setup();
-	initADC();
-	initCON();
+	
+	DDRC |= (1<<DDC4);
+	DDRD |= (1<<DDD2)|(1<<DDD3)|(1<<DDD4)|(1<<DDD5)|(1<<DDD6)|(1<<DDD7);
+	DDRB |= (1<<DDB0)|(1<<DDB1);
+	
+	PORTC |= (1<<PORTC4);
+	
+	PORTD &=	~((1<<DDD2)|(1<<DDD3)|(1<<DDD4)|(1<<DDD5)|(1<<DDD6)|(1<<DDD7));
+	PORTB &= ~((1<<DDB0)|(1<<DDB1));
+	
+	
+	spiInit(spi_master_128, spi_msb, clock_low, spi_clock_first_edge); 
 	iniciar_USART(103);
-	
-	
-	spiInit(spi_slave_ss, spi_msb, clock_low, spi_clock_first_edge); //Esclavo
+	char texto[6];
 	sei();
     while (1) 
     {
-		itoa(valor1, texto1, 10);
-		cadena(texto1);
+		
+		////////////MAESTRO
+		PORTC &= ~(1<<PORTC4);
+		
+		spiwrite('c');
+		
+		spiwrite(0x00);
+		
+		valorSpi = spiread();
+		cadena("POTENCIOMETRO 1: ");
+		itoa(valorSpi, texto, 10);
+		cadena(texto);
+		cadena("               ");
+
+		
+		
+		spiwrite('A');
+		
+		spiwrite(0x00);
+		
+		valorSpi = spiread();
+		cadena("POTENCIOMETRO 2: ");
+		itoa(valorSpi, texto, 10);  
+		cadena(texto);
 		enviar('\n');
-		_delay_ms(200);
+		refreshPort(valorSpi);
+
+		PORTC |= (1<<PORTC4);
+	
+		
+		_delay_ms(250);
+
+		
     }
 }
 
 
 // NON-Interrupt subroutines
-void setup(){
-	PORTD |= (1<<PORTD2)|(1<<PORTD3)|(1<<PORTD4)|(1<<PORTD5)|(1<<PORTD6)|(1<<PORTD7);
-	PORTB |= (1<<PORTB0)|(1<<PORTB1);
-	
-}
-
-
-// Interrupt routines
-
-//ESCLAVO
-ISR(ADC_vect){
-	
-
-	initCON();
-	
-	if(canal_actual == 0){
-		ADMUX |= (1 << MUX2) | (1 << MUX1);    // ADC6
-		ADMUX &= ~(1<<MUX0);
-		canal_actual = 1;
-		valor1 = ADC;
-		//voltaje1 = (valor1/1023.0)*5.0;
-		
-
-	}else if (canal_actual == 1)
-	{
-		ADMUX |= (1<<MUX2) | (1<<MUX0);           //cambia al canal 5
-		ADMUX &= ~(1<<MUX1);
-		valor2 = ADC;
-		//voltaje2 = (valor2/1023.0)*5.0;
-		canal_actual = 0;
+void refreshPort(uint8_t valor){
+	if(valor & 0b10000000){
+		PORTB |= (1<<PORTB1);
+	}else{
+		PORTB &= ~(1<<PORTB1);
 	}
-}
-
-ISR(SPI_STC_vect)
-{
-	static uint8_t parte = 0;
-	static uint16_t dato;
-
-	uint8_t comando = SPDR;
-
-	if(comando == '1'){         // Maestro pide ADC1
-		dato = valor1;
-		SPDR = dato >> 8;       // alto
-		parte = 1;
+	if(valor & 0b01000000){
+		PORTB |= (1<<PORTB0);
+	}else{
+		PORTB &= ~(1<<PORTB0);
 	}
-	else if(comando == '2'){    // Maestro pide ADC2
-		dato = valor2;
-		SPDR = dato >> 8;
-		parte = 1;
+	if(valor & 0b00100000){
+		PORTD |= (1<<PORTD7);
+		}else{
+		PORTD &= ~(1<<PORTD7);
 	}
-	else if(parte == 1){
-		SPDR = dato & 0xFF;     // bajo
-		parte = 0;
+	if(valor & 0b00010000){
+		PORTD |= (1<<PORTD6);
+		}else{
+		PORTD &= ~(1<<PORTD6);
 	}
-	else{
-		SPDR = 0;
+	if(valor & 0b00001000){
+		PORTD |= (1<<PORTD5);
+		}else{
+		PORTD &= ~(1<<PORTD5);
 	}
+	if(valor & 0b00000100){
+		PORTD |= (1<<PORTD4);
+		}else{
+		PORTD &= ~(1<<PORTD4);
+	}
+	if(valor & 0b00000010){
+		PORTD |= (1<<PORTD3);
+		}else{
+		PORTD &= ~(1<<PORTD3);
+	}
+	if(valor & 0b00000001){
+		PORTD |= (1<<PORTD2);
+		}else{
+		PORTD &= ~(1<<PORTD2);
+	}
+
 }
-
-*/
-
-
-
-////////////////////////////////////MAESTRO//////////////////////////////////////
-
-// Main Function
-int main(void){
-
-	setup();
-	iniciar_USART(103);
-	
-	//MSS para seleccionar el Slave
-	DDRB |= (1<<PORTB2);
-	PORTB |= (1<<PORTB2); //Maestro
-	
-	spiInit(spi_master_32, spi_msb, clock_low, spi_clock_first_edge); //Maestro
-	sei();
-    while (1) 
-    {
-		
-		//MAESTRO
-		adc1 = leerADC_esclavo('1');  // ADC6 del esclavo
-		adc2 = leerADC_esclavo('2');  // ADC5 del esclavo
-		itoa(adc1, texto1, 10);
-		itoa(adc2, texto2, 10);
-		cadena(adc1);
-		cadena("    ");
-		cadena(adc2);
-		enviar('\n');
-
-
-		_delay_ms(200);
-
-		
-		//Esclavo
-		
-		
-    }
-}
-
-
-
-// NON-Interrupt subroutines
-void setup(){
-	PORTD |= (1<<PORTD2)|(1<<PORTD3)|(1<<PORTD4)|(1<<PORTD5)|(1<<PORTD6)|(1<<PORTD7);
-	PORTB |= (1<<PORTB0)|(1<<PORTB1);
-	
-}
-
-
-// Interrupt routines
-
-
-
-
